@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Llançador i barrejador de cartes</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@700&display=swap');
+
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            font-family: 'Roboto Slab', serif;
+            font-size: 2.5em;
+            color: #333;
+        }
+        button {
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .stop-button {
+            background-color: #f44336;
+        }
+        .stop-button:hover {
+            background-color: #e53935;
+        }
+        #output {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        #timer {
+            margin-top: 10px;
+            font-size: 16px;
+            color: #555;
+        }
+        #warning {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 2px solid #f44336;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            text-align: center;
+        }
+        #warning img {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 10px;
+        }
+        #warning button {
+            background-color: #f44336;
+            color: white;
+            padding: 10px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #warning button:hover {
+            background-color: #d32f2f;
+        }
+        .card {
+            width: 60px;
+            height: 90px;
+            background-image: url('https://th.bing.com/th/id/OIP.TjnxnDLy9FAoXK1ECNBbjAHaHa?w=176&h=180&c=7&r=0&o=5&pid=1.7');
+            background-size: cover;
+            border: 1px solid #000;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 2px;
+        }
+        .animation {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .fade-out {
+            animation: fadeOut 1s ease-in-out forwards;
+        }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        .shake {
+            animation: shake 1s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            50% { transform: translateX(10px); }
+            75% { transform: translateX(-10px); }
+        }
+        #slider-container {
+            margin: 20px;
+            text-align: center;
+        }
+        #slider {
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Llançador i barrejador de cartes</h1>
+    <p>Controla el dispositiu mitjançant aquesta interfície:</p>
+    <button onclick="checkAndShuffle()">Barrejar cartes</button>
+    <button onclick="checkAndLaunchCard()">Llançar una carta</button>
+    <button onclick="checkAndLaunchMultipleCards()">Llançar múltiples cartes</button>
+    <button id="stopButton" class="stop-button" onclick="stopShuffleAction()" style="display: none;">Aturar barreja</button>
+    <div id="slider-container">
+        <label for="slider">Temps per operació (segons):</label>
+        <input type="range" id="slider" min="5" max="60" step="5" value="20" onchange="updateTime()">
+        <span id="slider-value">20</span>s
+    </div>
+    <div id="output"></div>
+    <div id="timer"></div>
+
+    <div id="warning">
+        <img src="https://th.bing.com/th/id/OIP.TjnxnDLy9FAoXK1ECNBbjAHaHa?w=176&h=180&c=7&r=0&o=5&pid=1.7" alt="Advertència">
+        <p>Hi ha una operació en curs. Per continuar, primer atura la barreja.</p>
+        <button onclick="closeWarning()">D'acord</button>
+    </div>
+
+    <script>
+        let shuffleTimeout;
+        let timerInterval;
+        let operationInProgress = false;
+        let operationTime = 20; // Temps inicial per defecte
+
+        function updateTime() {
+            const slider = document.getElementById("slider");
+            operationTime = parseInt(slider.value);
+            document.getElementById("slider-value").innerText = operationTime;
+        }
+
+        function checkAndShuffle() {
+            if (operationInProgress) {
+                showWarning();
+            } else {
+                shuffleCards();
+            }
+        }
+
+        function checkAndLaunchCard() {
+            if (operationInProgress) {
+                showWarning();
+            } else {
+                launchCard();
+            }
+        }
+
+        function checkAndLaunchMultipleCards() {
+            if (operationInProgress) {
+                showWarning();
+            } else {
+                launchMultipleCards();
+            }
+        }
+
+        function shuffleCards() {
+            document.getElementById("output").innerText = "Barrejant cartes...";
+            let timeLeft = operationTime;
+            operationInProgress = true;
+
+            document.getElementById("stopButton").style.display = "inline-block";
+            document.getElementById("stopButton").classList.add("shake");
+
+            clearInterval(timerInterval);
+            document.getElementById("timer").innerText = `Temps restant: ${timeLeft} segons`;
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                if (timeLeft >= 0) {
+                    document.getElementById("timer").innerText = `Temps restant: ${timeLeft} segons`;
+                }
+            }, 1000);
+
+            const output = document.getElementById("output");
+            output.innerHTML = "";
+            for (let i = 0; i < 10; i++) {
+                const card = document.createElement("div");
+                card.classList.add("card", "fade-out");
+                output.appendChild(card);
+            }
+
+            clearTimeout(shuffleTimeout);
+            shuffleTimeout = setTimeout(() => {
+                document.getElementById("output").innerText = "Barreja finalitzada.";
+                document.getElementById("timer").innerText = "";
+                clearInterval(timerInterval);
+                document.getElementById("stopButton").style.display = "none";
+                document.getElementById("stopButton").classList.remove("shake");
+                operationInProgress = false;
+            }, operationTime * 1000);
+        }
+
+        function stopShuffleAction() {
+            clearTimeout(shuffleTimeout);
+            clearInterval(timerInterval);
+            document.getElementById("output").innerText = "Barreja aturada manualment.";
+            document.getElementById("timer").innerText = "";
+            document.getElementById("stopButton").style.display = "none";
+            document.getElementById("stopButton").classList.remove("shake");
+            operationInProgress = false;
+        }
+
+        function launchCard() {
+            document.getElementById("output").innerText = "Llançant una carta...";
+            document.getElementById("timer").innerText = "";
+            document.getElementById("stopButton").style.display = "none";
+            operationInProgress = false;
+
+            const output = document.getElementById("output");
+            output.innerHTML = "";
+            const card = document.createElement("div");
+            card.classList.add("card", "shake");
+            output.appendChild(card);
+        }
+
+        function launchMultipleCards() {
+            document.getElementById("output").innerText = "Llançant múltiples cartes...";
+            document.getElementById("timer").innerText = "";
+            document.getElementById("stopButton").style.display = "none";
+            operationInProgress = false;
+
+            const output = document.getElementById("output");
+            output.innerHTML = "";
+            for (let i = 0; i < 5; i++) {
+                const card = document.createElement("div");
+                card.classList.add("card", "fade-out");
+                output.appendChild(card);
+            }
+        }
+
+        function showWarning() {
+            document.getElementById("warning").style.display = "block";
+        }
+
+        function closeWarning() {
+            document.getElementById("warning").style.display = "none";
+        }
+    </script>
+</body
+
